@@ -9,6 +9,10 @@ public class InterlockingImpl implements Interlocking {
     public InterlockingImpl() {
         sections = new HashMap<>();
         trains = new HashMap<>();
+
+        for (int i = 1; i <= 11; i++) {
+            sections.put(i, null);
+        }
     }
 
     @Override
