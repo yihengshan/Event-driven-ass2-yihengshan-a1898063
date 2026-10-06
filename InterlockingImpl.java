@@ -47,7 +47,10 @@ public class InterlockingImpl implements Interlocking {
     public int getTrain(String trainName)
             throws IllegalArgumentException {
 
-        // To be implemented later
-        return -1;
+        if (!trains.containsKey(trainName)) {
+            throw new IllegalArgumentException("Train does not exist");
+        }
+
+        return trains.get(trainName);
     }
 }
