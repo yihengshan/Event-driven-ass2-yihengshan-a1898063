@@ -1,10 +1,18 @@
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
+import java.util.HashSet;
 
 public class InterlockingImpl implements Interlocking {
 
     private final Map<Integer, String> sections;
     private final Map<String, Integer> trains;
+
+    private final Set<Integer> southboundEntries;
+    private final Set<Integer> southboundDestinations;
+
+    private final Set<Integer> northboundEntries;
+    private final Set<Integer> northboundDestinations;
 
     public InterlockingImpl() {
         sections = new HashMap<>();
@@ -13,6 +21,40 @@ public class InterlockingImpl implements Interlocking {
         for (int i = 1; i <= 11; i++) {
             sections.put(i, null);
         }
+
+        southboundEntries = new HashSet<>();
+        southboundEntries.add(1);
+        southboundEntries.add(3);
+
+        southboundDestinations = new HashSet<>();
+        southboundDestinations.add(4);
+        southboundDestinations.add(8);
+        southboundDestinations.add(9);
+        southboundDestinations.add(11);
+
+        northboundEntries = new HashSet<>();
+        northboundEntries.add(4);
+        northboundEntries.add(9);
+        northboundEntries.add(10);
+        northboundEntries.add(11);
+
+        northboundDestinations = new HashSet<>();
+        northboundDestinations.add(2);
+        northboundDestinations.add(3);
+    }
+
+    private boolean isValidEntryDestination(int entryTrackSection,
+                                            int destinationTrackSection) {
+
+        boolean validSouthbound =
+                southboundEntries.contains(entryTrackSection)
+                && southboundDestinations.contains(destinationTrackSection);
+
+        boolean validNorthbound =
+                northboundEntries.contains(entryTrackSection)
+                && northboundDestinations.contains(destinationTrackSection);
+
+        return validSouthbound || validNorthbound;
     }
 
     @Override
