@@ -36,8 +36,11 @@ public class InterlockingImpl implements Interlocking {
     public String getSection(int trackSection)
             throws IllegalArgumentException {
 
-        // To be implemented later
-        return null;
+        if (trackSection < 1 || trackSection > 11) {
+            throw new IllegalArgumentException("Invalid track section");
+        }
+
+        return sections.get(trackSection);
     }
 
     @Override
