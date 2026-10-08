@@ -14,6 +14,8 @@ public class InterlockingImpl implements Interlocking {
     private final Set<Integer> northboundEntries;
     private final Set<Integer> northboundDestinations;
 
+    private final Map<String, int[]> passengerRoutes;
+
     public InterlockingImpl() {
         sections = new HashMap<>();
         trains = new HashMap<>();
@@ -41,6 +43,13 @@ public class InterlockingImpl implements Interlocking {
         northboundDestinations = new HashSet<>();
         northboundDestinations.add(2);
         northboundDestinations.add(3);
+
+        passengerRoutes = new HashMap<>();
+
+        passengerRoutes.put("1-8", new int[] {1, 5, 8});
+        passengerRoutes.put("1-9", new int[] {1, 5, 9});
+        passengerRoutes.put("9-2", new int[] {9, 6, 2});
+        passengerRoutes.put("10-2", new int[] {10, 6, 2});
     }
 
     private boolean isValidEntryDestination(int entryTrackSection,
@@ -55,6 +64,10 @@ public class InterlockingImpl implements Interlocking {
                 && northboundDestinations.contains(destinationTrackSection);
 
         return validSouthbound || validNorthbound;
+    }
+
+    private String routeKey(int entryTrackSection, int destinationTrackSection) {
+        return entryTrackSection + "-" + destinationTrackSection;
     }
 
     @Override
