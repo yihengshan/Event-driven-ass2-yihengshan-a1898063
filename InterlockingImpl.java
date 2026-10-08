@@ -86,6 +86,14 @@ public class InterlockingImpl implements Interlocking {
                          int destinationTrackSection)
             throws IllegalArgumentException, IllegalStateException {
 
+        if (trains.containsKey(trainName)) {
+            throw new IllegalArgumentException("Train name already exists");
+        }
+
+        if (sections.get(entryTrackSection) != null) {
+            throw new IllegalStateException("Entry track section is occupied");
+        }
+
         String key = routeKey(entryTrackSection, destinationTrackSection);
 
         boolean passengerRoute = passengerRoutes.containsKey(key);
