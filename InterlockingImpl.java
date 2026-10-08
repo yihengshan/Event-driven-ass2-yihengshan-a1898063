@@ -118,6 +118,16 @@ public class InterlockingImpl implements Interlocking {
         return -1;
     }
 
+    private boolean isAtDestination(String trainName) {
+
+        int currentSection = trains.get(trainName);
+        int[] route = trainRoutes.get(trainName);
+
+        int destinationSection = route[route.length - 1];
+
+        return currentSection == destinationSection;
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
@@ -168,6 +178,20 @@ public class InterlockingImpl implements Interlocking {
             }
 
             int currentSection = trains.get(trainName);
+
+            if (currentSection == -1) {
+                throw new IllegalArgumentException(
+                        "Train is no longer in the rail corridor");
+            }
+
+            if (isAtDestination(trainName)) {
+                sections.put(currentSection, null);
+                trains.put(trainName, -1);
+
+                movedTrains++;
+                continue;
+            }
+
             int nextSection = getNextSection(trainName);
 
             if (nextSection == -1) {
