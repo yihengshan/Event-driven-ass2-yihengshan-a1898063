@@ -17,9 +17,12 @@ public class InterlockingImpl implements Interlocking {
     private final Map<String, int[]> passengerRoutes;
     private final Map<String, int[]> freightRoutes;
 
+    private final Map<String, int[]> trainRoutes;
+
     public InterlockingImpl() {
         sections = new HashMap<>();
         trains = new HashMap<>();
+        trainRoutes = new HashMap<>();
 
         for (int i = 1; i <= 11; i++) {
             sections.put(i, null);
@@ -89,6 +92,32 @@ public class InterlockingImpl implements Interlocking {
                 || freightRoutes.containsKey(key);
     }
 
+    private int[] getDefinedRoute(int entryTrackSection,
+                                  int destinationTrackSection) {
+
+        String key = routeKey(entryTrackSection, destinationTrackSection);
+
+        if (passengerRoutes.containsKey(key)) {
+            return passengerRoutes.get(key);
+        }
+
+        return freightRoutes.get(key);
+    }
+
+    private int getNextSection(String trainName) {
+
+        int currentSection = trains.get(trainName);
+        int[] route = trainRoutes.get(trainName);
+
+        for (int i = 0; i < route.length - 1; i++) {
+            if (route[i] == currentSection) {
+                return route[i + 1];
+            }
+        }
+
+        return -1;
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
@@ -119,6 +148,11 @@ public class InterlockingImpl implements Interlocking {
 
         sections.put(entryTrackSection, trainName);
         trains.put(trainName, entryTrackSection);
+
+        int[] route = getDefinedRoute(entryTrackSection,
+                                      destinationTrackSection);
+
+        trainRoutes.put(trainName, route);
     }
 
     @Override
