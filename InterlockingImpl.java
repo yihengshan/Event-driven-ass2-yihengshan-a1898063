@@ -159,8 +159,33 @@ public class InterlockingImpl implements Interlocking {
     public int moveTrains(String[] trainNames)
             throws IllegalArgumentException {
 
-        // To be implemented later
-        return 0;
+        int movedTrains = 0;
+
+        for (String trainName : trainNames) {
+
+            if (!trains.containsKey(trainName)) {
+                throw new IllegalArgumentException("Train does not exist");
+            }
+
+            int currentSection = trains.get(trainName);
+            int nextSection = getNextSection(trainName);
+
+            if (nextSection == -1) {
+                continue;
+            }
+
+            if (sections.get(nextSection) != null) {
+                continue;
+            }
+
+            sections.put(currentSection, null);
+            sections.put(nextSection, trainName);
+            trains.put(trainName, nextSection);
+
+            movedTrains++;
+        }
+
+        return movedTrains;
     }
 
     @Override
