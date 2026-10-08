@@ -86,7 +86,17 @@ public class InterlockingImpl implements Interlocking {
                          int destinationTrackSection)
             throws IllegalArgumentException, IllegalStateException {
 
-        // To be implemented later
+        String key = routeKey(entryTrackSection, destinationTrackSection);
+
+        boolean passengerRoute = passengerRoutes.containsKey(key);
+        boolean freightRoute = freightRoutes.containsKey(key);
+
+        if (!passengerRoute && !freightRoute) {
+            throw new IllegalArgumentException("No valid route");
+        }
+
+        sections.put(entryTrackSection, trainName);
+        trains.put(trainName, entryTrackSection);
     }
 
     @Override
