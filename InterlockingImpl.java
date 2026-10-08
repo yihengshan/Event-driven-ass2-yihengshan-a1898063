@@ -80,27 +80,41 @@ public class InterlockingImpl implements Interlocking {
         return entryTrackSection + "-" + destinationTrackSection;
     }
 
+    private boolean hasDefinedRoute(int entryTrackSection,
+                                    int destinationTrackSection) {
+
+        String key = routeKey(entryTrackSection, destinationTrackSection);
+
+        return passengerRoutes.containsKey(key)
+                || freightRoutes.containsKey(key);
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
                          int destinationTrackSection)
             throws IllegalArgumentException, IllegalStateException {
 
+        if (trainName == null || trainName.isEmpty()) {
+            throw new IllegalArgumentException("Invalid train name");
+        }
+
         if (trains.containsKey(trainName)) {
             throw new IllegalArgumentException("Train name already exists");
         }
 
-        if (sections.get(entryTrackSection) != null) {
-            throw new IllegalStateException("Entry track section is occupied");
+        if (!isValidEntryDestination(entryTrackSection,
+                                     destinationTrackSection)) {
+            throw new IllegalArgumentException("Invalid entry or destination");
         }
 
-        String key = routeKey(entryTrackSection, destinationTrackSection);
-
-        boolean passengerRoute = passengerRoutes.containsKey(key);
-        boolean freightRoute = freightRoutes.containsKey(key);
-
-        if (!passengerRoute && !freightRoute) {
+        if (!hasDefinedRoute(entryTrackSection,
+                             destinationTrackSection)) {
             throw new IllegalArgumentException("No valid route");
+        }
+
+        if (sections.get(entryTrackSection) != null) {
+            throw new IllegalStateException("Entry track section is occupied");
         }
 
         sections.put(entryTrackSection, trainName);
