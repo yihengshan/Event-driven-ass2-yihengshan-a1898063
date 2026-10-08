@@ -15,6 +15,7 @@ public class InterlockingImpl implements Interlocking {
     private final Set<Integer> northboundDestinations;
 
     private final Map<String, int[]> passengerRoutes;
+    private final Map<String, int[]> freightRoutes;
 
     public InterlockingImpl() {
         sections = new HashMap<>();
@@ -50,6 +51,13 @@ public class InterlockingImpl implements Interlocking {
         passengerRoutes.put("1-9", new int[] {1, 5, 9});
         passengerRoutes.put("9-2", new int[] {9, 6, 2});
         passengerRoutes.put("10-2", new int[] {10, 6, 2});
+
+        freightRoutes = new HashMap<>();
+
+        freightRoutes.put("3-4", new int[] {3, 4});
+        freightRoutes.put("3-11", new int[] {3, 7, 11});
+        freightRoutes.put("4-3", new int[] {4, 3});
+        freightRoutes.put("11-3", new int[] {11, 7, 3});
     }
 
     private boolean isValidEntryDestination(int entryTrackSection,
@@ -66,7 +74,9 @@ public class InterlockingImpl implements Interlocking {
         return validSouthbound || validNorthbound;
     }
 
-    private String routeKey(int entryTrackSection, int destinationTrackSection) {
+    private String routeKey(int entryTrackSection,
+                            int destinationTrackSection) {
+
         return entryTrackSection + "-" + destinationTrackSection;
     }
 
