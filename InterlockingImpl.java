@@ -1,6 +1,8 @@
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.LinkedHashSet;
+import java.util.List;
 import java.util.Map;
 import java.util.Set;
 
@@ -124,7 +126,9 @@ public class InterlockingImpl implements Interlocking {
         int currentSection = trains.get(trainName);
         int[] route = trainRoutes.get(trainName);
 
-        return currentSection == route[route.length - 1];
+        int destinationSection = route[route.length - 1];
+
+        return currentSection == destinationSection;
     }
 
     private String getJunctionForTransition(int currentSection,
@@ -163,6 +167,54 @@ public class InterlockingImpl implements Interlocking {
                 || (currentSection == 4 && nextSection == 3);
     }
 
+    /*
+     * Checks whether the section occupied by another train
+     * will eventually be released during this same move batch.
+     */
+    private boolean canEventuallyMove(
+            String trainName,
+            Map<String, Integer> plannedNextSections,
+            Map<Integer, String> originalSections,
+            Set<String> visiting) {
+
+        if (visiting.contains(trainName)) {
+            return false;
+        }
+
+        Integer nextSection = plannedNextSections.get(trainName);
+
+        if (nextSection == null) {
+            return false;
+        }
+
+        // -1 means that the train will leave the corridor.
+        if (nextSection == -1) {
+            return true;
+        }
+
+        String occupyingTrain = originalSections.get(nextSection);
+
+        if (occupyingTrain == null) {
+            return true;
+        }
+
+        if (!plannedNextSections.containsKey(occupyingTrain)) {
+            return false;
+        }
+
+        visiting.add(trainName);
+
+        boolean result = canEventuallyMove(
+                occupyingTrain,
+                plannedNextSections,
+                originalSections,
+                visiting);
+
+        visiting.remove(trainName);
+
+        return result;
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
@@ -180,12 +232,14 @@ public class InterlockingImpl implements Interlocking {
 
         if (!isValidEntryDestination(entryTrackSection,
                                      destinationTrackSection)) {
+
             throw new IllegalArgumentException(
                     "Invalid entry or destination");
         }
 
         if (!hasDefinedRoute(entryTrackSection,
                              destinationTrackSection)) {
+
             throw new IllegalArgumentException("No valid route");
         }
 
@@ -197,10 +251,11 @@ public class InterlockingImpl implements Interlocking {
         sections.put(entryTrackSection, trainName);
         trains.put(trainName, entryTrackSection);
 
-        trainRoutes.put(
-                trainName,
-                getDefinedRoute(entryTrackSection,
-                                destinationTrackSection));
+        int[] route = getDefinedRoute(
+                entryTrackSection,
+                destinationTrackSection);
+
+        trainRoutes.put(trainName, route);
     }
 
     @Override
@@ -219,6 +274,7 @@ public class InterlockingImpl implements Interlocking {
 
             if (trainName == null
                     || !trains.containsKey(trainName)) {
+
                 throw new IllegalArgumentException(
                         "Train does not exist");
             }
@@ -235,15 +291,26 @@ public class InterlockingImpl implements Interlocking {
             return 0;
         }
 
+        /*
+         * Save the railway state before this movement batch.
+         */
         Map<Integer, String> originalSections =
                 new HashMap<>(sections);
 
+        /*
+         * Store the section each requested train wants next.
+         *
+         * -1 means the train will leave the corridor.
+         */
         Map<String, Integer> plannedNextSections =
                 new HashMap<>();
 
         /*
-         * Count how many requested trains want each
-         * destination section.
+         * NEW:
+         * Count how many trains want to enter each section.
+         *
+         * If two trains want the same section in the same batch,
+         * neither train will be allowed to move there.
          */
         Map<Integer, Integer> destinationCounts =
                 new HashMap<>();
@@ -258,35 +325,86 @@ public class InterlockingImpl implements Interlocking {
                 nextSection = getNextSection(trainName);
             }
 
-            plannedNextSections.put(trainName, nextSection);
+            plannedNextSections.put(
+                    trainName,
+                    nextSection);
 
             if (nextSection != -1) {
+
+                int oldCount =
+                        destinationCounts.getOrDefault(
+                                nextSection, 0);
+
                 destinationCounts.put(
                         nextSection,
-                        destinationCounts.getOrDefault(
-                                nextSection, 0) + 1);
+                        oldCount + 1);
             }
         }
 
         /*
-         * Trains that are already at their destination
-         * will leave during this call.
+         * Work out which trains are physically able to move.
          */
-        Set<String> exitingTrains = new HashSet<>();
+        Set<String> possibleTrains = new HashSet<>();
 
         for (String trainName : requestedTrains) {
 
-            if (plannedNextSections.get(trainName) == -1) {
-                exitingTrains.add(trainName);
+            int nextSection =
+                    plannedNextSections.get(trainName);
+
+            /*
+             * NEW:
+             * If multiple trains want the same destination
+             * section, none of them may move there.
+             */
+            if (nextSection != -1
+                    && destinationCounts.get(nextSection) > 1) {
+
+                continue;
+            }
+
+            if (canEventuallyMove(
+                    trainName,
+                    plannedNextSections,
+                    originalSections,
+                    new HashSet<String>())) {
+
+                possibleTrains.add(trainName);
             }
         }
 
         /*
-         * First determine which normal movements are eligible.
+         * Choose movements while respecting destination
+         * and junction conflicts.
          */
-        Set<String> eligibleTrains = new LinkedHashSet<>();
+        Set<String> selectedTrains =
+                new LinkedHashSet<>();
 
+        Set<Integer> reservedSections =
+                new HashSet<>();
+
+        Set<String> reservedJunctions =
+                new HashSet<>();
+
+        /*
+         * Exiting trains are selected first.
+         */
         for (String trainName : requestedTrains) {
+
+            if (possibleTrains.contains(trainName)
+                    && plannedNextSections.get(trainName) == -1) {
+
+                selectedTrains.add(trainName);
+            }
+        }
+
+        /*
+         * Passenger movements through J1 are considered first.
+         */
+        for (String trainName : requestedTrains) {
+
+            if (!possibleTrains.contains(trainName)) {
+                continue;
+            }
 
             int nextSection =
                     plannedNextSections.get(trainName);
@@ -295,64 +413,17 @@ public class InterlockingImpl implements Interlocking {
                 continue;
             }
 
-            /*
-             * If two or more trains want the same section,
-             * none of them may enter it.
-             */
-            if (destinationCounts.get(nextSection) > 1) {
-                continue;
-            }
-
-            String occupyingTrain =
-                    originalSections.get(nextSection);
-
-            /*
-             * An occupied section may only be entered if
-             * its current train will directly EXIT during
-             * this moveTrains call.
-             *
-             * We do not allow a chain such as:
-             *
-             * A: 6 -> 2
-             * B: 9 -> 6
-             *
-             * during the same call.
-             */
-            if (occupyingTrain != null
-                    && !exitingTrains.contains(occupyingTrain)) {
-                continue;
-            }
-
-            eligibleTrains.add(trainName);
-        }
-
-        /*
-         * Select transitions while protecting junctions.
-         */
-        Set<String> selectedTrains = new LinkedHashSet<>();
-        Set<String> reservedJunctions = new HashSet<>();
-
-        /*
-         * Exiting trains always release their section.
-         */
-        selectedTrains.addAll(exitingTrains);
-
-        /*
-         * Passenger J1 movements first.
-         */
-        for (String trainName : requestedTrains) {
-
-            if (!eligibleTrains.contains(trainName)) {
-                continue;
-            }
-
-            int currentSection = trains.get(trainName);
-            int nextSection =
-                    plannedNextSections.get(trainName);
+            int currentSection =
+                    trains.get(trainName);
 
             if (!isPassengerJ1Transition(
                     currentSection,
                     nextSection)) {
+
+                continue;
+            }
+
+            if (reservedSections.contains(nextSection)) {
                 continue;
             }
 
@@ -363,10 +434,12 @@ public class InterlockingImpl implements Interlocking {
 
             if (junction != null
                     && reservedJunctions.contains(junction)) {
+
                 continue;
             }
 
             selectedTrains.add(trainName);
+            reservedSections.add(nextSection);
 
             if (junction != null) {
                 reservedJunctions.add(junction);
@@ -374,22 +447,34 @@ public class InterlockingImpl implements Interlocking {
         }
 
         /*
-         * Normal non-freight-J1 movements.
+         * Process movements that are not freight J1 movements.
          */
         for (String trainName : requestedTrains) {
 
-            if (!eligibleTrains.contains(trainName)
+            if (!possibleTrains.contains(trainName)
                     || selectedTrains.contains(trainName)) {
+
                 continue;
             }
 
-            int currentSection = trains.get(trainName);
             int nextSection =
                     plannedNextSections.get(trainName);
+
+            if (nextSection == -1) {
+                continue;
+            }
+
+            int currentSection =
+                    trains.get(trainName);
 
             if (isFreightJ1Transition(
                     currentSection,
                     nextSection)) {
+
+                continue;
+            }
+
+            if (reservedSections.contains(nextSection)) {
                 continue;
             }
 
@@ -400,10 +485,12 @@ public class InterlockingImpl implements Interlocking {
 
             if (junction != null
                     && reservedJunctions.contains(junction)) {
+
                 continue;
             }
 
             selectedTrains.add(trainName);
+            reservedSections.add(nextSection);
 
             if (junction != null) {
                 reservedJunctions.add(junction);
@@ -411,23 +498,34 @@ public class InterlockingImpl implements Interlocking {
         }
 
         /*
-         * Freight J1 movements last so passenger trains
-         * keep priority.
+         * Freight movements through J1 are processed last.
          */
         for (String trainName : requestedTrains) {
 
-            if (!eligibleTrains.contains(trainName)
+            if (!possibleTrains.contains(trainName)
                     || selectedTrains.contains(trainName)) {
+
                 continue;
             }
 
-            int currentSection = trains.get(trainName);
             int nextSection =
                     plannedNextSections.get(trainName);
+
+            if (nextSection == -1) {
+                continue;
+            }
+
+            int currentSection =
+                    trains.get(trainName);
 
             if (!isFreightJ1Transition(
                     currentSection,
                     nextSection)) {
+
+                continue;
+            }
+
+            if (reservedSections.contains(nextSection)) {
                 continue;
             }
 
@@ -438,10 +536,12 @@ public class InterlockingImpl implements Interlocking {
 
             if (junction != null
                     && reservedJunctions.contains(junction)) {
+
                 continue;
             }
 
             selectedTrains.add(trainName);
+            reservedSections.add(nextSection);
 
             if (junction != null) {
                 reservedJunctions.add(junction);
@@ -449,19 +549,64 @@ public class InterlockingImpl implements Interlocking {
         }
 
         /*
-         * Apply all selected transitions together.
+         * If train A wants to enter the current section of
+         * train B, then train B must actually be selected
+         * to leave that section.
          *
-         * First free old sections.
+         * This also fixes chained conflicts after a train was
+         * removed because of destination competition.
+         */
+        boolean changed;
+
+        do {
+            changed = false;
+
+            List<String> toRemove =
+                    new ArrayList<>();
+
+            for (String trainName : selectedTrains) {
+
+                int nextSection =
+                        plannedNextSections.get(trainName);
+
+                if (nextSection == -1) {
+                    continue;
+                }
+
+                String occupyingTrain =
+                        originalSections.get(nextSection);
+
+                if (occupyingTrain != null
+                        && !selectedTrains.contains(
+                                occupyingTrain)) {
+
+                    toRemove.add(trainName);
+                }
+            }
+
+            if (!toRemove.isEmpty()) {
+                selectedTrains.removeAll(toRemove);
+                changed = true;
+            }
+
+        } while (changed);
+
+        /*
+         * Apply all selected transitions simultaneously.
+         *
+         * First release old sections.
          */
         for (String trainName : selectedTrains) {
 
-            int currentSection = trains.get(trainName);
+            int currentSection =
+                    trains.get(trainName);
 
             sections.put(currentSection, null);
         }
 
         /*
-         * Then place moving trains in their new sections.
+         * Then place trains into new sections or mark them
+         * as outside the corridor.
          */
         for (String trainName : selectedTrains) {
 
@@ -469,8 +614,11 @@ public class InterlockingImpl implements Interlocking {
                     plannedNextSections.get(trainName);
 
             if (nextSection == -1) {
+
                 trains.put(trainName, -1);
+
             } else {
+
                 sections.put(nextSection, trainName);
                 trains.put(trainName, nextSection);
             }
