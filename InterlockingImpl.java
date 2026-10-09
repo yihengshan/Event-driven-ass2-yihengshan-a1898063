@@ -128,6 +128,30 @@ public class InterlockingImpl implements Interlocking {
         return currentSection == destinationSection;
     }
 
+    private String getJunctionForTransition(int currentSection,
+                                            int nextSection) {
+
+        // Junction J1
+        if ((currentSection == 1 && nextSection == 5)
+                || (currentSection == 6 && nextSection == 2)
+                || (currentSection == 3 && nextSection == 4)
+                || (currentSection == 4 && nextSection == 3)) {
+
+            return "J1";
+        }
+
+        // Junction J2
+        if ((currentSection == 5 && nextSection == 8)
+                || (currentSection == 5 && nextSection == 9)
+                || (currentSection == 9 && nextSection == 6)
+                || (currentSection == 10 && nextSection == 6)) {
+
+            return "J2";
+        }
+
+        return null;
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
@@ -144,7 +168,8 @@ public class InterlockingImpl implements Interlocking {
 
         if (!isValidEntryDestination(entryTrackSection,
                                      destinationTrackSection)) {
-            throw new IllegalArgumentException("Invalid entry or destination");
+            throw new IllegalArgumentException(
+                    "Invalid entry or destination");
         }
 
         if (!hasDefinedRoute(entryTrackSection,
@@ -153,7 +178,8 @@ public class InterlockingImpl implements Interlocking {
         }
 
         if (sections.get(entryTrackSection) != null) {
-            throw new IllegalStateException("Entry track section is occupied");
+            throw new IllegalStateException(
+                    "Entry track section is occupied");
         }
 
         sections.put(entryTrackSection, trainName);
@@ -171,14 +197,18 @@ public class InterlockingImpl implements Interlocking {
 
         int movedTrains = 0;
 
-        // Save the state before this batch of movements begins.
+        // Save the state before this batch starts.
         Map<Integer, String> originalSections =
                 new HashMap<>(sections);
 
-        // Prevent two trains from selecting the same destination section.
+        // Prevent two trains from moving to the same section.
         Set<Integer> reservedSections = new HashSet<>();
 
-        // Validate all requested trains before changing the system.
+        // Prevent two trains from using the same junction
+        // during one moveTrains call.
+        Set<String> reservedJunctions = new HashSet<>();
+
+        // Validate all train names before making any changes.
         for (String trainName : trainNames) {
 
             if (!trains.containsKey(trainName)) {
@@ -196,6 +226,7 @@ public class InterlockingImpl implements Interlocking {
 
             int currentSection = trains.get(trainName);
 
+            // A train at its destination exits on its next move.
             if (isAtDestination(trainName)) {
                 sections.put(currentSection, null);
                 trains.put(trainName, -1);
@@ -210,17 +241,33 @@ public class InterlockingImpl implements Interlocking {
                 continue;
             }
 
-            // The section must have been empty before this batch started.
+            // The destination section must have been empty
+            // before the whole batch started.
             if (originalSections.get(nextSection) != null) {
                 continue;
             }
 
-            // Another train in this batch must not already be moving there.
+            // Another train in this batch must not already
+            // have reserved the same destination section.
             if (reservedSections.contains(nextSection)) {
                 continue;
             }
 
+            String junction =
+                    getJunctionForTransition(currentSection,
+                                             nextSection);
+
+            // Only one train can use a junction in this batch.
+            if (junction != null
+                    && reservedJunctions.contains(junction)) {
+                continue;
+            }
+
             reservedSections.add(nextSection);
+
+            if (junction != null) {
+                reservedJunctions.add(junction);
+            }
 
             sections.put(currentSection, null);
             sections.put(nextSection, trainName);
@@ -237,7 +284,8 @@ public class InterlockingImpl implements Interlocking {
             throws IllegalArgumentException {
 
         if (trackSection < 1 || trackSection > 11) {
-            throw new IllegalArgumentException("Invalid track section");
+            throw new IllegalArgumentException(
+                    "Invalid track section");
         }
 
         return sections.get(trackSection);
@@ -248,7 +296,8 @@ public class InterlockingImpl implements Interlocking {
             throws IllegalArgumentException {
 
         if (!trains.containsKey(trainName)) {
-            throw new IllegalArgumentException("Train does not exist");
+            throw new IllegalArgumentException(
+                    "Train does not exist");
         }
 
         return trains.get(trainName);
