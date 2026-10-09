@@ -52,22 +52,21 @@ public class InterlockingImpl implements Interlocking {
         northboundDestinations.add(3);
 
         passengerRoutes = new HashMap<>();
-
         passengerRoutes.put("1-8", new int[] {1, 5, 8});
         passengerRoutes.put("1-9", new int[] {1, 5, 9});
         passengerRoutes.put("9-2", new int[] {9, 6, 2});
         passengerRoutes.put("10-2", new int[] {10, 6, 2});
 
         freightRoutes = new HashMap<>();
-
         freightRoutes.put("3-4", new int[] {3, 4});
         freightRoutes.put("3-11", new int[] {3, 7, 11});
         freightRoutes.put("4-3", new int[] {4, 3});
         freightRoutes.put("11-3", new int[] {11, 7, 3});
     }
 
-    private boolean isValidEntryDestination(int entryTrackSection,
-                                            int destinationTrackSection) {
+    private boolean isValidEntryDestination(
+            int entryTrackSection,
+            int destinationTrackSection) {
 
         boolean validSouthbound =
                 southboundEntries.contains(entryTrackSection)
@@ -80,25 +79,32 @@ public class InterlockingImpl implements Interlocking {
         return validSouthbound || validNorthbound;
     }
 
-    private String routeKey(int entryTrackSection,
-                            int destinationTrackSection) {
+    private String routeKey(
+            int entryTrackSection,
+            int destinationTrackSection) {
 
         return entryTrackSection + "-" + destinationTrackSection;
     }
 
-    private boolean hasDefinedRoute(int entryTrackSection,
-                                    int destinationTrackSection) {
+    private boolean hasDefinedRoute(
+            int entryTrackSection,
+            int destinationTrackSection) {
 
-        String key = routeKey(entryTrackSection, destinationTrackSection);
+        String key = routeKey(
+                entryTrackSection,
+                destinationTrackSection);
 
         return passengerRoutes.containsKey(key)
                 || freightRoutes.containsKey(key);
     }
 
-    private int[] getDefinedRoute(int entryTrackSection,
-                                  int destinationTrackSection) {
+    private int[] getDefinedRoute(
+            int entryTrackSection,
+            int destinationTrackSection) {
 
-        String key = routeKey(entryTrackSection, destinationTrackSection);
+        String key = routeKey(
+                entryTrackSection,
+                destinationTrackSection);
 
         if (passengerRoutes.containsKey(key)) {
             return passengerRoutes.get(key);
@@ -108,7 +114,6 @@ public class InterlockingImpl implements Interlocking {
     }
 
     private int getNextSection(String trainName) {
-
         int currentSection = trains.get(trainName);
         int[] route = trainRoutes.get(trainName);
 
@@ -122,51 +127,27 @@ public class InterlockingImpl implements Interlocking {
     }
 
     private boolean isAtDestination(String trainName) {
-
         int currentSection = trains.get(trainName);
         int[] route = trainRoutes.get(trainName);
 
-        int destinationSection = route[route.length - 1];
-
-        return currentSection == destinationSection;
+        return currentSection == route[route.length - 1];
     }
 
-    private String getJunctionForTransition(int currentSection,
-                                            int nextSection) {
-
-        if ((currentSection == 1 && nextSection == 5)
-                || (currentSection == 6 && nextSection == 2)
-                || (currentSection == 3 && nextSection == 4)
-                || (currentSection == 4 && nextSection == 3)) {
-
-            return "J1";
-        }
-
-        if ((currentSection == 5 && nextSection == 8)
-                || (currentSection == 5 && nextSection == 9)
-                || (currentSection == 9 && nextSection == 6)
-                || (currentSection == 10 && nextSection == 6)) {
-
-            return "J2";
-        }
-
-        return null;
-    }
-
-    private boolean isPassengerJ1Transition(int currentSection,
-                                            int nextSection) {
+    private boolean isPassengerJ1Transition(
+            int currentSection,
+            int nextSection) {
 
         return (currentSection == 1 && nextSection == 5)
                 || (currentSection == 6 && nextSection == 2);
     }
 
-    private boolean isFreightJ1Transition(int currentSection,
-                                          int nextSection) {
+    private boolean isFreightJ1Transition(
+            int currentSection,
+            int nextSection) {
 
         return (currentSection == 3 && nextSection == 4)
                 || (currentSection == 4 && nextSection == 3);
     }
-
 
     private boolean canEventuallyMove(
             String trainName,
@@ -188,7 +169,8 @@ public class InterlockingImpl implements Interlocking {
             return true;
         }
 
-        String occupyingTrain = originalSections.get(nextSection);
+        String occupyingTrain =
+                originalSections.get(nextSection);
 
         if (occupyingTrain == null) {
             return true;
@@ -212,13 +194,15 @@ public class InterlockingImpl implements Interlocking {
     }
 
     @Override
-    public void addTrain(String trainName,
-                         int entryTrackSection,
-                         int destinationTrackSection)
+    public void addTrain(
+            String trainName,
+            int entryTrackSection,
+            int destinationTrackSection)
             throws IllegalArgumentException, IllegalStateException {
 
         if (trainName == null || trainName.isEmpty()) {
-            throw new IllegalArgumentException("Invalid train name");
+            throw new IllegalArgumentException(
+                    "Invalid train name");
         }
 
         if (trains.containsKey(trainName)) {
@@ -226,17 +210,20 @@ public class InterlockingImpl implements Interlocking {
                     "Train name already exists");
         }
 
-        if (!isValidEntryDestination(entryTrackSection,
-                                     destinationTrackSection)) {
+        if (!isValidEntryDestination(
+                entryTrackSection,
+                destinationTrackSection)) {
 
             throw new IllegalArgumentException(
                     "Invalid entry or destination");
         }
 
-        if (!hasDefinedRoute(entryTrackSection,
-                             destinationTrackSection)) {
+        if (!hasDefinedRoute(
+                entryTrackSection,
+                destinationTrackSection)) {
 
-            throw new IllegalArgumentException("No valid route");
+            throw new IllegalArgumentException(
+                    "No valid route");
         }
 
         if (sections.get(entryTrackSection) != null) {
@@ -247,11 +234,11 @@ public class InterlockingImpl implements Interlocking {
         sections.put(entryTrackSection, trainName);
         trains.put(trainName, entryTrackSection);
 
-        int[] route = getDefinedRoute(
-                entryTrackSection,
-                destinationTrackSection);
-
-        trainRoutes.put(trainName, route);
+        trainRoutes.put(
+                trainName,
+                getDefinedRoute(
+                        entryTrackSection,
+                        destinationTrackSection));
     }
 
     @Override
@@ -287,57 +274,27 @@ public class InterlockingImpl implements Interlocking {
             return 0;
         }
 
-   
         Map<Integer, String> originalSections =
                 new HashMap<>(sections);
 
-     
-
         Map<String, Integer> plannedNextSections =
-                new HashMap<>();
-        Map<Integer, Integer> destinationCounts =
                 new HashMap<>();
 
         for (String trainName : requestedTrains) {
 
-            int nextSection;
-
             if (isAtDestination(trainName)) {
-                nextSection = -1;
+                plannedNextSections.put(trainName, -1);
             } else {
-                nextSection = getNextSection(trainName);
-            }
-
-            plannedNextSections.put(
-                    trainName,
-                    nextSection);
-
-            if (nextSection != -1) {
-
-                int oldCount =
-                        destinationCounts.getOrDefault(
-                                nextSection, 0);
-
-                destinationCounts.put(
-                        nextSection,
-                        oldCount + 1);
+                plannedNextSections.put(
+                        trainName,
+                        getNextSection(trainName));
             }
         }
 
-    
-        Set<String> possibleTrains = new HashSet<>();
+        Set<String> possibleTrains =
+                new HashSet<>();
 
         for (String trainName : requestedTrains) {
-
-            int nextSection =
-                    plannedNextSections.get(trainName);
-
-      
-            if (nextSection != -1
-                    && destinationCounts.get(nextSection) > 1) {
-
-                continue;
-            }
 
             if (canEventuallyMove(
                     trainName,
@@ -349,25 +306,7 @@ public class InterlockingImpl implements Interlocking {
             }
         }
 
-
-        Set<String> selectedTrains =
-                new LinkedHashSet<>();
-
-        Set<Integer> reservedSections =
-                new HashSet<>();
-
-        Set<String> reservedJunctions =
-                new HashSet<>();
-
-        for (String trainName : requestedTrains) {
-
-            if (possibleTrains.contains(trainName)
-                    && plannedNextSections.get(trainName) == -1) {
-
-                selectedTrains.add(trainName);
-            }
-        }
-
+        boolean passengerJ1Requested = false;
 
         for (String trainName : requestedTrains) {
 
@@ -385,44 +324,50 @@ public class InterlockingImpl implements Interlocking {
             int currentSection =
                     trains.get(trainName);
 
-            if (!isPassengerJ1Transition(
+            if (isPassengerJ1Transition(
                     currentSection,
                     nextSection)) {
 
-                continue;
-            }
-
-            if (reservedSections.contains(nextSection)) {
-                continue;
-            }
-
-            String junction =
-                    getJunctionForTransition(
-                            currentSection,
-                            nextSection);
-
-            if (junction != null
-                    && reservedJunctions.contains(junction)) {
-
-                continue;
-            }
-
-            selectedTrains.add(trainName);
-            reservedSections.add(nextSection);
-
-            if (junction != null) {
-                reservedJunctions.add(junction);
+                passengerJ1Requested = true;
+                break;
             }
         }
 
+        Set<String> priorityEligible =
+                new LinkedHashSet<>();
 
         for (String trainName : requestedTrains) {
 
-            if (!possibleTrains.contains(trainName)
-                    || selectedTrains.contains(trainName)) {
+            if (!possibleTrains.contains(trainName)) {
+                continue;
+            }
+
+            int nextSection =
+                    plannedNextSections.get(trainName);
+
+            if (nextSection == -1) {
+                priorityEligible.add(trainName);
+                continue;
+            }
+
+            int currentSection =
+                    trains.get(trainName);
+
+            if (passengerJ1Requested
+                    && isFreightJ1Transition(
+                            currentSection,
+                            nextSection)) {
 
                 continue;
             }
+
+            priorityEligible.add(trainName);
+        }
+
+        Map<Integer, Integer> destinationCounts =
+                new HashMap<>();
+
+        for (String trainName : priorityEligible) {
 
             int nextSection =
                     plannedNextSections.get(trainName);
@@ -431,88 +376,39 @@ public class InterlockingImpl implements Interlocking {
                 continue;
             }
 
-            int currentSection =
-                    trains.get(trainName);
-
-            if (isFreightJ1Transition(
-                    currentSection,
-                    nextSection)) {
-
-                continue;
-            }
-
-            if (reservedSections.contains(nextSection)) {
-                continue;
-            }
-
-            String junction =
-                    getJunctionForTransition(
-                            currentSection,
-                            nextSection);
-
-            if (junction != null
-                    && reservedJunctions.contains(junction)) {
-
-                continue;
-            }
-
-            selectedTrains.add(trainName);
-            reservedSections.add(nextSection);
-
-            if (junction != null) {
-                reservedJunctions.add(junction);
-            }
+            destinationCounts.put(
+                    nextSection,
+                    destinationCounts.getOrDefault(
+                            nextSection, 0) + 1);
         }
 
+        Set<String> conflictFree =
+                new LinkedHashSet<>();
 
-        for (String trainName : requestedTrains) {
-
-            if (!possibleTrains.contains(trainName)
-                    || selectedTrains.contains(trainName)) {
-
-                continue;
-            }
+        for (String trainName : priorityEligible) {
 
             int nextSection =
                     plannedNextSections.get(trainName);
 
             if (nextSection == -1) {
+                conflictFree.add(trainName);
                 continue;
             }
 
-            int currentSection =
-                    trains.get(trainName);
-
-            if (!isFreightJ1Transition(
-                    currentSection,
-                    nextSection)) {
-
-                continue;
-            }
-
-            if (reservedSections.contains(nextSection)) {
-                continue;
-            }
-
-            String junction =
-                    getJunctionForTransition(
-                            currentSection,
-                            nextSection);
-
-            if (junction != null
-                    && reservedJunctions.contains(junction)) {
-
-                continue;
-            }
-
-            selectedTrains.add(trainName);
-            reservedSections.add(nextSection);
-
-            if (junction != null) {
-                reservedJunctions.add(junction);
+            if (destinationCounts.get(nextSection) == 1) {
+                conflictFree.add(trainName);
             }
         }
 
+        Set<String> selectedTrains =
+                new LinkedHashSet<>();
+
+        for (String trainName : requestedTrains) {
+
+            if (conflictFree.contains(trainName)) {
+                selectedTrains.add(trainName);
+            }
+        }
 
         boolean changed;
 
@@ -549,7 +445,6 @@ public class InterlockingImpl implements Interlocking {
 
         } while (changed);
 
-
         for (String trainName : selectedTrains) {
 
             int currentSection =
@@ -557,7 +452,6 @@ public class InterlockingImpl implements Interlocking {
 
             sections.put(currentSection, null);
         }
-
 
         for (String trainName : selectedTrains) {
 
