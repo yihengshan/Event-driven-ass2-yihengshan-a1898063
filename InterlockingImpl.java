@@ -152,6 +152,57 @@ public class InterlockingImpl implements Interlocking {
         return null;
     }
 
+    private boolean isPassengerJ1Transition(int currentSection,
+                                            int nextSection) {
+
+        return (currentSection == 1 && nextSection == 5)
+                || (currentSection == 6 && nextSection == 2);
+    }
+
+    private boolean isFreightJ1Transition(int currentSection,
+                                          int nextSection) {
+
+        return (currentSection == 3 && nextSection == 4)
+                || (currentSection == 4 && nextSection == 3);
+    }
+
+    private boolean hasEnabledPassengerAtJ1(
+            String[] trainNames,
+            Map<Integer, String> originalSections) {
+
+        for (String trainName : trainNames) {
+
+            if (!trains.containsKey(trainName)) {
+                continue;
+            }
+
+            int currentSection = trains.get(trainName);
+
+            if (currentSection == -1) {
+                continue;
+            }
+
+            if (isAtDestination(trainName)) {
+                continue;
+            }
+
+            int nextSection = getNextSection(trainName);
+
+            if (nextSection == -1) {
+                continue;
+            }
+
+            if (isPassengerJ1Transition(currentSection,
+                                        nextSection)
+                    && originalSections.get(nextSection) == null) {
+
+                return true;
+            }
+        }
+
+        return false;
+    }
+
     @Override
     public void addTrain(String trainName,
                          int entryTrackSection,
@@ -163,7 +214,8 @@ public class InterlockingImpl implements Interlocking {
         }
 
         if (trains.containsKey(trainName)) {
-            throw new IllegalArgumentException("Train name already exists");
+            throw new IllegalArgumentException(
+                    "Train name already exists");
         }
 
         if (!isValidEntryDestination(entryTrackSection,
@@ -201,14 +253,10 @@ public class InterlockingImpl implements Interlocking {
         Map<Integer, String> originalSections =
                 new HashMap<>(sections);
 
-        // Prevent two trains from moving to the same section.
         Set<Integer> reservedSections = new HashSet<>();
-
-        // Prevent two trains from using the same junction
-        // during one moveTrains call.
         Set<String> reservedJunctions = new HashSet<>();
 
-        // Validate all train names before making any changes.
+        // Validate all requested trains before changing the system.
         for (String trainName : trainNames) {
 
             if (!trains.containsKey(trainName)) {
@@ -222,11 +270,21 @@ public class InterlockingImpl implements Interlocking {
             }
         }
 
+        /*
+         * Check passenger priority before any train moves.
+         * If an enabled passenger movement needs J1,
+         * conflicting freight movement must wait.
+         */
+        boolean passengerHasJ1Priority =
+                hasEnabledPassengerAtJ1(
+                        trainNames,
+                        originalSections);
+
         for (String trainName : trainNames) {
 
             int currentSection = trains.get(trainName);
 
-            // A train at its destination exits on its next move.
+            // Train exits on the move after reaching destination.
             if (isAtDestination(trainName)) {
                 sections.put(currentSection, null);
                 trains.put(trainName, -1);
@@ -241,14 +299,12 @@ public class InterlockingImpl implements Interlocking {
                 continue;
             }
 
-            // The destination section must have been empty
-            // before the whole batch started.
+            // Section must have been empty before this batch.
             if (originalSections.get(nextSection) != null) {
                 continue;
             }
 
-            // Another train in this batch must not already
-            // have reserved the same destination section.
+            // Two trains cannot select the same destination section.
             if (reservedSections.contains(nextSection)) {
                 continue;
             }
@@ -257,9 +313,22 @@ public class InterlockingImpl implements Interlocking {
                     getJunctionForTransition(currentSection,
                                              nextSection);
 
-            // Only one train can use a junction in this batch.
+            /*
+             * Passenger trains have priority at J1.
+             *
+             * If an enabled passenger crossing was requested
+             * in this batch, a conflicting freight train must wait.
+             */
+            if (isFreightJ1Transition(currentSection, nextSection)
+                    && passengerHasJ1Priority) {
+
+                continue;
+            }
+
+            // Only one train can use each junction per batch.
             if (junction != null
                     && reservedJunctions.contains(junction)) {
+
                 continue;
             }
 
