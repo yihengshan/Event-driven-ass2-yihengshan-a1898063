@@ -171,18 +171,30 @@ public class InterlockingImpl implements Interlocking {
 
         int movedTrains = 0;
 
+        // Save the state before this batch of movements begins.
+        Map<Integer, String> originalSections =
+                new HashMap<>(sections);
+
+        // Prevent two trains from selecting the same destination section.
+        Set<Integer> reservedSections = new HashSet<>();
+
+        // Validate all requested trains before changing the system.
         for (String trainName : trainNames) {
 
             if (!trains.containsKey(trainName)) {
-                throw new IllegalArgumentException("Train does not exist");
+                throw new IllegalArgumentException(
+                        "Train does not exist");
             }
 
-            int currentSection = trains.get(trainName);
-
-            if (currentSection == -1) {
+            if (trains.get(trainName) == -1) {
                 throw new IllegalArgumentException(
                         "Train is no longer in the rail corridor");
             }
+        }
+
+        for (String trainName : trainNames) {
+
+            int currentSection = trains.get(trainName);
 
             if (isAtDestination(trainName)) {
                 sections.put(currentSection, null);
@@ -198,9 +210,17 @@ public class InterlockingImpl implements Interlocking {
                 continue;
             }
 
-            if (sections.get(nextSection) != null) {
+            // The section must have been empty before this batch started.
+            if (originalSections.get(nextSection) != null) {
                 continue;
             }
+
+            // Another train in this batch must not already be moving there.
+            if (reservedSections.contains(nextSection)) {
+                continue;
+            }
+
+            reservedSections.add(nextSection);
 
             sections.put(currentSection, null);
             sections.put(nextSection, trainName);
